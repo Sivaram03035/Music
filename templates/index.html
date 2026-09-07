@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>YT Music Player</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #0f0f0f;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 30px 20px;
+        }
+
+        h1 {
+            margin-bottom: 25px;
+        }
+
+        .search {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #181818;
+            color: white;
+            font-size: 16px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            cursor: pointer;
+            background: #ff0033;
+            color: white;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        #results {
+            margin-top: 25px;
+        }
+
+        .song {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            margin-bottom: 8px;
+            border-radius: 10px;
+            background: #181818;
+            cursor: pointer;
+        }
+
+        .song:hover {
+            background: #242424;
+        }
+
+        .play {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #ff0033;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .info {
+            min-width: 0;
+        }
+
+        .title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #aaa;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #181818;
+            border-top: 1px solid #333;
+            padding: 15px;
+        }
+
+        .now-playing {
+            max-width: 900px;
+            margin: auto;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        audio {
+            width: 100%;
+        }
+
+        .loading {
+            color: #aaa;
+            margin-top: 20px;
+        }
+
+        .error {
+            color: #ff5c5c;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🎵 YouTube Music Player</h1>
+
+    <div class="search">
+        <input
+            id="query"
+            placeholder="Search songs, artists..."
+            value="Vikram Tamil"
+        >
+
+        <button onclick="searchMusic()">
+            Search
+        </button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="results"></div>
+
+</div>
+
+<div class="player">
+
+    <div class="now-playing" id="nowPlaying">
+        Nothing playing
+    </div>
+
+    <audio
+        id="audio"
+        controls
+        preload="none">
+    </audio>
+
+</div>
+
+
+<script>
+
+async function searchMusic() {
+
+    const query =
+        document.getElementById("query").value.trim();
+
+    if (!query)
+        return;
+
+    const results =
+        document.getElementById("results");
+
+    const status =
+        document.getElementById("status");
+
+    results.innerHTML = "";
+
+    status.innerHTML =
+        '<div class="loading">Searching...</div>';
+
+    try {
+
+        const response =
+            await fetch(
+                "/search?q=" +
+                encodeURIComponent(query)
+            );
+
+        const data =
+            await response.json();
+
+        status.innerHTML = "";
+
+        if (data.error) {
+            status.innerHTML =
+                `<div class="error">${data.error}</div>`;
+            return;
+        }
+
+        if (!data.length) {
+            status.innerHTML =
+                '<div class="loading">No results found.</div>';
+            return;
+        }
+
+        data.forEach(song => {
+
+            const element =
+                document.createElement("div");
+
+            element.className = "song";
+
+            element.innerHTML = `
+                <div class="play">▶</div>
+
+                <div class="info">
+                    <div class="title">
+                        ${escapeHtml(song.title)}
+                    </div>
+
+                    <div class="subtitle">
+                        ${escapeHtml(song.subtitle)}
+                    </div>
+                </div>
+            `;
+
+            element.onclick = () =>
+                playSong(song);
+
+            results.appendChild(element);
+        });
+
+    } catch (error) {
+
+        status.innerHTML =
+            `<div class="error">
+                ${error}
+            </div>`;
+    }
+}
+
+
+async function playSong(song) {
+
+    const status =
+        document.getElementById("status");
+
+    const player =
+        document.getElementById("audio");
+
+    const nowPlaying =
+        document.getElementById("nowPlaying");
+
+    nowPlaying.textContent =
+        "Loading: " + song.title;
+
+    status.innerHTML =
+        '<div class="loading">Getting audio stream...</div>';
+
+    try {
+
+        const response =
+            await fetch(
+                "/stream/" + song.videoId
+            );
+
+        const data =
+            await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        player.src = data.url;
+
+        nowPlaying.textContent =
+            data.title || song.title;
+
+        status.innerHTML = "";
+
+        await player.play();
+
+    } catch (error) {
+
+        status.innerHTML =
+            `<div class="error">
+                Unable to play: ${error.message}
+            </div>`;
+    }
+}
+
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent = text || "";
+
+    return div.innerHTML;
+}
+
+
+document
+    .getElementById("query")
+    .addEventListener("keydown", event => {
+
+        if (event.key === "Enter") {
+            searchMusic();
+        }
+
+    });
+
+</script>
+
+</body>
+</html>
