@@ -1,4 +1,6 @@
 Flask
 innertube
-yt-dlp
+yt-dlp[default]
+yt-dlp-ejs
+bgutil-ytdlp-pot-provider
 gunicorn
