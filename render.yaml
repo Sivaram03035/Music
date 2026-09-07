@@ -1,0 +1,23 @@
+services:
+
+  - type: web
+    name: yt-music-player
+    runtime: python
+
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+
+    startCommand: |
+      bash start.sh
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+
+      - key: YTDL_POT_PROVIDER_URL
+        value: http://127.0.0.1:4416
+
+    healthCheckPath: /health
+
+    autoDeploy: true
